@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <!-- <div id="app">
+    <my-button></my-button>
+  </div> -->
+  <div id="root"></div>
+  <script src="../dist/vue.js"></script>
+  <script>
+    // 实现Vue.extend()：创建一个组件的构造函数，可以通过这个构造函数的实例对象直接挂载
+    // let Sub = Vue.extend({
+    //   template: '<button>点我啊</button>'
+    // })
+    // new Sub().$mount('#root')
+
+  
+    // 默认情况下面，new Vue产生的是一个根实例
+    // 组件的三大特性：自定义标签、组件里面有自己的属性和事件、组件的插槽
+    // 组件自己上面定义的组件 和 全局组件如果名字一样，组件先用的是自己身上的组件
+    // 下面两种写法是一样的效果
+    // Vue.component('my-button', Vue.extend({
+    //   template: '<button>点我啊</button>'
+    // }))
+    // 不写Vue.extend，第二个参数内部默认会被Vue.extend进行调用的
+    // Vue.component('my-button', {
+    //   template: '<button>点我啊</button>'
+    // })
+
+
+    // 通过Vue.component()创建一个组件，这个组件可以在模板中直接使用
+    // Vue.component()第第二个参数可以直接传一个对象{}，也可以传Vue.extend({})
+    // 全局组件就是在Vue.options.components['my-button'] = Sub函数  (Sub函数就是Vue.extend返回的东西)
+    Vue.component('my-button', Vue.extend({
+      template: '<button>全局button</button>'
+    }))
+    Vue.component('my-span', {
+      template: '<span style="color:red;">我是全局{{tag}}{{type}}</span>',
+      data() {
+        return {
+          tag: 'span',
+          type: '标签'
+        }
+      }
+    })
+    // 在Vue.extend里面的 template 模板中使用组件
+    // 在处理属性的时候，要处理一下，组件自己上面定义的组件 和 全局组件如果名字一样，组件先用的是自己身上的组件
+    // 在模板渲染的时候，需要去查找my-button组件
+    // 模板 -> ast语法树 -> 虚拟dom，需要对元素再次进行分类，分类成组件的虚拟节点
+    let Sub = Vue.extend({
+      template: '<div>子组件 ~~ <my-button></my-button>  ~~ <my-span /></div>',
+      components: {
+        'my-button': {
+          template: '<button>子组件自己声明的{{tag}}{{type}}</button>',
+          data() {
+            return {
+              tag: 'Button',
+              type: '标签'
+            }
+          }
+        }
+      }
+    })
+    new Sub().$mount('#root')
+
+
+    // let vm = new Vue({
+    //   el: '#app',
+    //   data() {
+    //     return {
+    //       name: 'zf'
+    //     }
+    //   },
+    //   components: {
+    //     'my-button': {
+    //       template: '<button>inner Button</button>'
+    //     }
+    //   }
+    // })
+  </script>
+</body>
+</html>

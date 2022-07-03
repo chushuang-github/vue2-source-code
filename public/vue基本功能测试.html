@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <!-- 只有模板里面使用的数据才会被收集依赖，模板里面使用的数据变化才会重新渲染视图 -->
+  <!-- 我们可以给模板中的属性 增加一个收集器 dev -->
+  <!-- 页面渲染的时候，我们将渲染逻辑封装到watcher中：vm._update(vm._render()) -->
+  <!-- 让dev记住这个watcher即可，属性变化了，可以找到对应的dep中存放的watcher进行重新渲染 -->
+  <!-- 观察者模式 -->
+  <div id="app" style="color: blue">
+    <li style="color:red;" key="123">{{name}}--hello--{{age}}--world</li>
+    <li style="color: orange">app</li>
+    <li>{{ hobby }}</li>
+    <li>{{ favor }}</li>
+    <li>{{ a }}</li>
+    <li>fullName: {{ fullName }} -- {{ fullName }} -- {{ fullName }}</li>
+  </div>
+  <script src="../dist/vue.js"></script>
+  <script>
+    // 全局混入Vue.mixin测试
+    // Vue.mixin全局的api函数在 globalAPI.js 文件里面定义的
+    // 全局的api的使用，一定要在new Vue之前执行，不然不生效(new Vue的时候，会进行全局配置和用户传入配置的合并)
+    // Vue.mixin({
+    //   created() {
+    //     console.log('mixin1-created')
+    //   }
+    // })
+    // Vue.mixin({
+    //   created() {
+    //     console.log('mixin2-created')
+    //   }
+    // })
+
+  
+    // 响应式的数据变化，数据变化了我可以监控到数据的变化
+    // 数据的取值 和 更改值我也要监控到
+    const vm = new Vue({
+      data() {  // 代理数据
+        return {
+          name: 'coderwhy',
+          age: 18,
+          address: {
+            num: 30,
+            content: "回龙观"
+          },
+          // 页面中直接写{{hobby}}，对象类型模板解析的时候取值hobby方式为JSON.stringify形式
+          // 通过这种形式，会对数组中的对象取值，所以数组中的对象也会收集依赖
+          // 只要是对象，里面的属性都被劫持了，被劫持的属性只要在template里面取值使用了，就会收集依赖的
+          // 给数组本身增加dep，如果数组新增了某一项，我们可以触发dep进行更新
+          hobby: ['eat', 'drink', { a: 10 }],
+          // 通过vm.favor.c = 20这种方式增加属性进行更新，没法更新，因为初始的时候只对已存在的属性进行劫持了
+          // vue源码里面增加了vue.$set 和 vue.$delete方法可以对对象进行增加和删除
+          // 对对象本身增加dep，如果后续用户增添了属性，我可以触发dep进行更新(通过vue.$set、vue.$delete修改对象也进行更新)
+          favor: { b: 10 },
+          a: [1, 2, ['a', 'b']],
+          firstName: "珠",
+          lastName: "峰"
+        }
+      },
+      el: '#app',
+      // template: '<div>{{name}} -- {{age}}</div>',
+      // beforeCreate() {
+      //   console.log('beforeCreate-----name', this.name)
+      // },
+      // created() {
+      //   console.log('create-----name', this.name)
+      // },
+      // 计算属性：计算属性是有缓存的(计算属性依赖的值发生变化，才会去重新执行get方法计算最新的值)
+      // 计算属性中要维护一个dirty属性(表示计算属性是否是脏的，刚开始是脏的值为true，所以第一次取值会执行get方法计算值)
+      // 默认计算属性不会立刻执行，计算属性就是一个defineProperty
+      // 模板使用了fullName，fullName依赖firstName和lastName，firstName和lastName发生变化，计算属性fullName会重新计算值
+      // 计算属性发生了变化，页面也会重新渲染的
+      // 计算属性也是一个watcher，默认渲染(初次渲染)会创建一个渲染watcher
+      computed: {
+        // 计算属性的两种写法
+        fullName() {
+          return this.firstName + this.lastName
+        },
+        // fullName: {
+        //   get() {
+        //     return this.firstName + this.lastName
+        //   },
+        //   set(newVal) {
+        //     console.log(newVal)
+        //   }
+        // }
+      },
+      methods: {
+        fn(newValue, oldValue) {
+          console.log(newValue, oldValue)
+        }
+      },
+      // 监听变量的变化执行回调函数(watch的写法有很多)
+      // 这里面的watch方式，底层也是调用vm.$watch的写法
+      watch: {
+        // firstName(newValue, oldValue) {
+        //   console.log(newValue, oldValue)
+        // },
+        // lastName: 'fn'
+      }
+    })
+    // vm.$watch的两种写法：第一个参数是字符串 or 第一个参数是函数
+    // vm.$watch("firstName", (newValue, oldValue) => {
+    //   console.log(newValue, oldValue)
+    // })
+    // vm.$watch(() => vm.firstName, (newValue, oldValue) => {
+    //   console.log(newValue, oldValue)
+    // })
+    // vm.$watch(() => vm.fullName, (newValue, oldValue) => {    // 监听计算属性
+    //   console.log(newValue, oldValue)
+    // })
+  
+    // 更新数据，手动调用vm._update(vm._render())方法进行更新页面测试
+    // 更新数据，调用vm._update(vm._render())，页面就会变化
+    // 下一步：属性和我们的视图关联起来，做到数据变化可以自动更新视图 (观察者模式)
+    // 思路：依赖收集，页面渲染 (数据更新使用diff算法实现最小化更新)
+    // setTimeout(() => {
+    //   vm.name = 'kobe'
+    //   vm.age = 42
+    //   vm._update(vm._render())
+    // }, 2000)
+
+  
+    // 异步更新 + nextTick测试
+    // vm.$nextTick放在更新状态的上面，是不可以获取更新后的数据的
+    // vm.$nextTick(() => {
+    //   console.log(app.innerHTML)
+    // })
+    // vm.name = 'kobe'
+    // 写了多个vm.$nextTick，不是创建了多个异步任务，而是将里面的回调函数维护进入一个队列里面，异步执行该队列里面所有的回调函数
+    // 更新了属性之后，更新的操作也是异步的，这些异步的操作放在同一个队列里面进行同步执行
+    // 所以异步更新，nextTick里面的回调是可以取到更新后的数据的
+    // nextTick函数将传入的回调函数放入队列里面是同步的，放入队列里面的回调函数去执行是异步执行的
+    // vm.$nextTick(() => {
+    //   console.log(app.innerHTML)
+    // })
+    // vm.$nextTick(() => {
+    //   console.log(app.innerHTML)
+    // })
+
+
+    // 数组更新测试
+    // setTimeout(() => {
+    //   // vm.hobby[2].a = 100
+    //   // vm.hobby.splice(0, 1, 'eating')
+    //   // vm.hobby.splice(0, 1)
+    //   vm.hobby.push('run')
+    // }, 1500)
+
+    // 数组里面套数组 (数组里面嵌套的数组 or 对象也要进行依赖收集)
+    // setTimeout(() => {
+    //   vm.a[2].push('c')
+    // }, 1500)
+
+    // 计算属性computed + watch监听
+    // setTimeout(() => {
+    //   vm.firstName = 'xxx'
+    // }, 1500)
+    // setTimeout(() => {
+    //   vm.firstName = 'yyy'
+    // }, 3000)
+
+
+    // 对象增加属性测试 (vue.$set原理)  --- 这里演示一遍，后面再讲
+    // setTimeout(() => {
+    //   // 直接给对象增加属性
+    //   vm.favor.c = 100
+    //   // vue.$set原理；找到这个对象上面的dep属性，手动的调用dep上面的notify去更新
+    //   vm.favor.__ob__.dep.notify()
+    // }, 1500)
+
+
+    // 1.模板引擎，性能差，需要正则匹配替换，1.0的时候，没有引入虚拟DOM的概念
+    // 2.采用虚拟DOM，数据变化后比较虚拟DOM的差异，最后更新需要更新的地方
+    // 3.核心就是我们需要将模板变成js语法，通过js语法生成虚拟DOM
+  </script>
+</body>
+</html>
